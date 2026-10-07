@@ -90,8 +90,10 @@ async function refreshTokens() {
 }
 
 function logoutEvent() {
+  // Beberapa request bersamaan bisa gagal 401 sekaligus: umumkan sesi habis sekali saja.
+  const wasLoggedIn = session.isLoggedIn();
   session.clear();
-  window.dispatchEvent(new CustomEvent('pantau:logout'));
+  if (wasLoggedIn) window.dispatchEvent(new CustomEvent('pantau:logout'));
 }
 
 async function request(path, opts = {}) {

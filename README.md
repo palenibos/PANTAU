@@ -23,7 +23,7 @@ Screenshot lain: [login](docs/screenshots/01-login.jpg) · [budget](docs/screens
 - **Analisis & rekomendasi bulanan**: total income/expense/sisa uang, breakdown kategori (grafik), tren naik/turun, top 3 pengeluaran, **skor kesehatan keuangan 0–100**, status budget, dan rekomendasi ("Kalau dikurangin 20%, bisa kumpul Rp 180k/bulan…").
 - **Inbox notifikasi in-app** (alert budget, ringkasan mingguan Minggu 19:00, laporan bulanan akhir bulan 20:00).
 - Riwayat dengan **cari + filter** (periode, tipe, kategori, rentang nominal & tanggal), dikelompokkan per hari, 50 per halaman.
-- **Pengaturan**: budget per kategori (auto-save), budget bulanan total, kelola kategori, mode gelap, atur notifikasi, **ekspor CSV/JSON**, reset data.
+- **Pengaturan**: budget per kategori dan budget bulanan total (tombol **Simpan**, dengan penjaga bila ada perubahan yang belum tersimpan), kelola kategori, mode gelap, atur notifikasi, **ekspor CSV/JSON**, reset data.
 - Mode gelap, toast, animasi halus (menghormati `prefers-reduced-motion`), skeleton loading, empty state.
 
 ## 🚀 Jalankan lokal

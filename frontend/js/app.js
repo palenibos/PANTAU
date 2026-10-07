@@ -101,6 +101,8 @@ function newScreen(extraClass = '') {
 
 function showAuth() {
   renderToken += 1;
+  state.unsaved = null; // jangan bawa penjaga "belum disimpan" ke layar login / user berikutnya
+  state.pendingEdits = null;
   removeNav();
   const el = newScreen('no-nav');
   document.title = 'Masuk — PANTAU';
@@ -116,6 +118,19 @@ function showAuth() {
 }
 
 let currentHash = location.hash || '#/';
+let unsavedToken = 0; // render mana yang memasang state.unsaved (hindari render basi menghidupkan guard)
+let histIdx = 0; // indeks entri riwayat yang sedang tampil (disimpan di history.state)
+let guarding = false; // dialog "Buang perubahan?" sedang terbuka
+
+/** Beri nomor urut pada entri riwayat saat ini; dipakai untuk membatalkan Back/Forward/ketuk tautan dengan benar. */
+function stampHistory() {
+  const st = history.state;
+  if (st && typeof st.idx === 'number') histIdx = st.idx;
+  else {
+    histIdx += 1;
+    history.replaceState({ idx: histIdx }, '', location.href);
+  }
+}
 
 /** @param {{keepScroll?: boolean}} [opts] keepScroll: dipakai reload() agar posisi scroll tidak lompat ke atas. */
 async function route(opts = {}) {
@@ -123,7 +138,11 @@ async function route(opts = {}) {
   const keepScroll = opts.keepScroll === true;
   const scrollY = keepScroll ? window.scrollY : 0;
   currentHash = location.hash || '#/';
-  state.unsaved = null;
+  if (!keepScroll) {
+    state.unsaved = null;
+    state.pendingEdits = null; // hanya milik reload() sesaat, jangan "hidup lagi" di kunjungan berikutnya
+    stampHistory();
+  }
 
   const raw = location.hash.slice(1) || '/';
   const [path, qs = ''] = raw.split('?');
@@ -141,7 +160,8 @@ async function route(opts = {}) {
     });
   }
 
-  const el = newScreen(hideNav ? 'no-nav' : '');
+  // Reload tidak memutar animasi masuk lagi: layar tidak berkedip, dan bar simpan (fixed) tidak hilang sesaat.
+  const el = newScreen([hideNav ? 'no-nav' : '', keepScroll ? 'no-anim' : ''].filter(Boolean).join(' '));
   document.title = `${view.title} — PANTAU`;
   if (!keepScroll) window.scrollTo(0, 0);
 
@@ -156,6 +176,14 @@ async function route(opts = {}) {
     // Render ulang layar ini dengan elemen BARU. Jangan memanggil render(ctx) lagi pada root yang sama:
     // event listener lama ikut menumpuk (mis. satu ketukan membuka dua sheet).
     reload: () => route({ keepScroll: true }),
+    // Pasang penjaga "perubahan belum disimpan" hanya bila render ini masih yang aktif (bukan render basi).
+    setUnsaved: (fn) => {
+      if (token === renderToken) {
+        state.unsaved = fn;
+        unsavedToken = fn ? token : 0;
+      }
+    },
+    alive: () => token === renderToken,
   };
   try {
     const result = await view.render(ctx);
@@ -169,14 +197,21 @@ async function route(opts = {}) {
     }
   }
   if (token === renderToken) {
+    // Render ulang yang tidak memasang penjaga baru (mis. gagal memuat): lepaskan penjaga lama.
+    if (unsavedToken !== token) state.unsaved = null;
     if (keepScroll) window.scrollTo(0, scrollY);
     el.focus({ preventScroll: true });
   }
 }
 
 // Pindah halaman saat ada perubahan yang belum disimpan: tanya dulu, jangan buang diam-diam.
+// Batal = kembali ke entri riwayat semula dengan history.go(-delta), BUKAN replaceState (itu menimpa entri
+// sebelumnya sehingga tombol/gestur Back berikutnya salah arah).
 window.addEventListener('hashchange', async () => {
+  const hash = location.hash || '#/';
+  if (hash === currentHash || guarding) return; // sudah di layar itu (mis. hasil history.go), atau dialog masih terbuka
   if (state.unsaved && state.unsaved()) {
+    guarding = true;
     const leave = await confirmDialog({
       title: 'Buang perubahan?',
       message: 'Ada perubahan yang belum disimpan. Kalau pindah halaman sekarang, perubahannya hilang.',
@@ -184,8 +219,14 @@ window.addEventListener('hashchange', async () => {
       cancelText: 'Tetap di sini',
       danger: true,
     });
+    guarding = false;
     if (!leave) {
-      history.replaceState(null, '', currentHash); // kembali tanpa memicu hashchange lagi
+      // Selisih dihitung SETELAH dialog dijawab, dari lokasi terbaru (bisa sudah bergeser kalau Back ditekan berkali-kali).
+      const st = history.state;
+      const nowIdx = st && typeof st.idx === 'number' ? st.idx : histIdx + 1; // entri baru (push) belum bernomor
+      const delta = nowIdx - histIdx;
+      if (delta) history.go(-delta);
+      else history.replaceState(null, '', currentHash);
       return;
     }
   }
@@ -209,9 +250,12 @@ window.addEventListener('pantau:logout', () => {
 // pastikan field yang difokus terlihat. Hanya untuk perangkat sentuh.
 const coarse = window.matchMedia('(pointer: coarse)');
 const isTextField = (el) => el && el.matches && el.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, select');
+// Field yang memunculkan keyboard teks (select/date/dll. memunculkan picker, jangan di-blur karena viewport berubah).
+const needsKeyboard = (el) => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|tel|url|email|password|number)$/.test(el.type)));
 const root$ = document.documentElement;
 let kbTimer;
 let kbBase = null; // tinggi visual viewport saat keyboard belum muncul
+let kbWidth = null; // lebarnya: berubah = rotasi/resize jendela, bukan keyboard
 let kbSawOpen = false;
 
 document.addEventListener('focusin', (e) => {
@@ -219,6 +263,7 @@ document.addEventListener('focusin', (e) => {
   clearTimeout(kbTimer);
   if (!root$.classList.contains('kb-open') && window.visualViewport) {
     kbBase = window.visualViewport.height;
+    kbWidth = window.visualViewport.width;
     kbSawOpen = false;
   }
   root$.classList.add('kb-open');
@@ -262,7 +307,13 @@ if (vv) {
   };
   vv.addEventListener('resize', () => {
     syncOffset();
-    if (!coarse.matches || kbBase == null || !isTextField(document.activeElement) || vv.scale > 1.01) return;
+    if (!coarse.matches || kbBase == null || !needsKeyboard(document.activeElement) || vv.scale > 1.01) return;
+    if (vv.width !== kbWidth) { // rotasi / resize jendela: ukur ulang dari nol, jangan dianggap keyboard menutup
+      kbBase = vv.height;
+      kbWidth = vv.width;
+      kbSawOpen = false;
+      return;
+    }
     if (vv.height < kbBase - 100) kbSawOpen = true;
     else if (kbSawOpen && vv.height >= kbBase - 60) {
       kbSawOpen = false;

@@ -119,6 +119,7 @@ main:focus { outline: none; } /* fokus programatik setelah pindah halaman */
   animation: rise 0.35s var(--ease) backwards;
 }
 .screen.no-nav { padding-bottom: calc(24px + var(--safe-bottom)); }
+.screen.no-anim { animation: none; } /* reload(): tidak berkedip, dan elemen fixed tidak kehilangan posisi */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .screen-head { display: flex; align-items: center; gap: 4px; margin: 0 -8px 16px; }
@@ -512,6 +513,11 @@ html.kb-open .save-bar { bottom: 12px; }
 html.kb-open .screen.has-save-bar { padding-bottom: 96px; }
 @keyframes bar-in { from { opacity: 0; transform: translate(-50%, calc(var(--kb-offset, 0px) * -1 + 16px)); } to { opacity: 1; transform: translate(-50%, calc(var(--kb-offset, 0px) * -1)); } }
 .money-input.dirty { border-color: var(--warning); box-shadow: 0 0 0 3px var(--warn-bg); }
+.money-input.dirty:focus-within { border-color: var(--accent-primary); box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.25); } /* sedang diketik: ring fokus, bukan gaya 'diubah' */
+.money-input input::placeholder { color: var(--fg-tertiary); opacity: 1; } /* kontras 'tanpa' cukup di mode gelap */
+/* Nominal panjang (>= 10 juta): baris dilebarkan penuh supaya angka tidak terpotong, di semua lebar layar. */
+.bud.long { flex-wrap: wrap; row-gap: 6px; }
+.bud.long .money-input { flex: 1 1 100%; width: 100%; }
 
 /* ----------------------------------------------------------------- inbox */
 .notif { display: flex; gap: 12px; padding: 14px 12px 14px 14px; border-radius: 16px; border: 1px solid var(--card-border); background: var(--bg-secondary); border-left: 5px solid var(--mark-muted); position: relative; }
@@ -562,6 +568,7 @@ dialog.sheet::backdrop { background: rgba(15, 23, 42, 0.6); animation: fade 0.25
   /* Layar sangat sempit: nama di atas, kolom nominal selebar baris (tidak terpotong, nama tidak patah). */
   .bud { flex-wrap: wrap; row-gap: 6px; }
   .bud .money-input { flex: 1 1 100%; width: 100%; }
+  .bottom-nav a:not(.fab) { font-size: 11px; }
   .cat-grid .cat { min-height: 68px; font-size: 12px; }
   .presets { gap: 6px; }
   .presets .chip { padding: 0 11px; }

@@ -28,6 +28,8 @@ export async function render(ctx) {
     return;
   }
 
+  if (!ctx.alive()) return; // pengguna sudah pindah layar selagi data dimuat: jangan sentuh state global
+
   const expense = categories.filter((c) => c.type !== 'income');
   const budgeted = expense.filter((c) => !c.isSaving);
   const income = categories.filter((c) => c.type === 'income');
@@ -92,6 +94,7 @@ export async function render(ctx) {
     <p class="foot">PANTAU v1.0 · dibuat biar kamu nggak kalap 💸</p>
 
     <div class="save-bar" data-save-bar hidden role="region" aria-label="Perubahan budget belum disimpan">
+      <span class="sr-only" role="status" aria-live="polite" data-save-status></span>
       <button class="btn btn-secondary" type="button" data-save-cancel>Batal</button>
       <button class="btn btn-primary" type="submit" form="budget-form" data-save-btn>Simpan perubahan</button>
     </div>
@@ -133,14 +136,25 @@ export async function render(ctx) {
   const saveBar = root.querySelector('[data-save-bar]');
   const saveBtn = root.querySelector('[data-save-btn]');
 
+  let saving = false;
+  const statusEl = root.querySelector('[data-save-status]');
+  const cancelBtn = root.querySelector('[data-save-cancel]');
+
   const refresh = () => {
     const n = fields.filter(isDirty).length;
-    fields.forEach((f) => f.closest('.money-input').classList.toggle('dirty', isDirty(f)));
+    fields.forEach((f) => {
+      const box = f.closest('.money-input');
+      box.classList.toggle('dirty', isDirty(f));
+      // Nominal >= 10 juta ("10.000.000", 10 karakter) tidak muat di kolom 140px: baris dilebarkan penuh.
+      box.closest('.bud').classList.toggle('long', f.value.length >= 10);
+    });
     saveBar.hidden = n === 0;
     root.classList.toggle('has-save-bar', n > 0);
     if (!saveBtn.classList.contains('loading')) saveBtn.textContent = n > 1 ? `Simpan ${n} perubahan` : 'Simpan perubahan';
+    statusEl.textContent = n ? `${n} perubahan belum disimpan` : '';
   };
-  state.unsaved = () => fields.some(isDirty); // dibaca app.js untuk menahan navigasi
+  // Dibaca app.js untuk menahan navigasi. Selagi menyimpan, pindah halaman aman (request tetap selesai).
+  ctx.setUnsaved(() => !saving && fields.some(isDirty));
 
   // Render ulang (mis. setelah ubah kategori) tidak boleh membuang angka yang sedang diketik.
   const reload = () => {
@@ -157,7 +171,8 @@ export async function render(ctx) {
   fields.forEach((f) => bindMoneyInput(f, refresh));
   refresh();
 
-  root.querySelector('[data-save-cancel]').addEventListener('click', () => {
+  cancelBtn.addEventListener('click', () => {
+    if (saving) return;
     fields.forEach((f) => { f.value = formatAmount(initialOf.get(f)); });
     refresh();
   });
@@ -166,7 +181,12 @@ export async function render(ctx) {
     e.preventDefault();
     const changed = fields.filter(isDirty);
     if (!changed.length) return;
+    if (saving) return; // ketukan ganda
     if (isTextFieldFocused()) document.activeElement.blur(); // tutup keyboard
+    // Kunci selama menyimpan: perubahan/Batal di tengah proses membuat tampilan dan server berbeda.
+    saving = true;
+    cancelBtn.disabled = true;
+    fields.forEach((f) => { f.readOnly = true; });
     await withBusy(saveBtn, async () => {
       const results = await Promise.allSettled(
         changed.map(async (f) => {
@@ -192,8 +212,10 @@ export async function render(ctx) {
         toast.success(savedCount === 1 && only ? `Budget ${only.dataset.name || 'bulanan'} disimpan ✅` : `${savedCount} budget disimpan ✅`);
       }
       if (failed.length) toast.error(`${failed.length} budget gagal disimpan: ${failed[0].r.reason.message}`);
-      refresh();
     });
+    saving = false;
+    cancelBtn.disabled = false;
+    fields.forEach((f) => { f.readOnly = false; });
     refresh();
   });
 
@@ -328,6 +350,7 @@ export async function render(ctx) {
     if (!yes) return;
     try {
       await api.del('/api/settings/data', { confirm: 'RESET' });
+      ctx.setUnsaved(null); // data sudah direset: budget yang belum disimpan tidak berarti lagi
       state.invalidateCategories();
       toast.success('Data direset. Lembaran baru! 🌱');
       navigate('#/');
