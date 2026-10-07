@@ -41,7 +41,8 @@ export class ApiError extends Error {
   }
 }
 
-async function send(path, { method = 'GET', body, token, timeout = 20000, raw = false } = {}) {
+// Timeout 45 dtk: server free tier yang baru bangun dari tidur bisa butuh 30+ dtk untuk request pertama.
+async function send(path, { method = 'GET', body, token, timeout = 45000, raw = false } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   let res;

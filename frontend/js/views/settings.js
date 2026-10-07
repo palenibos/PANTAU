@@ -4,6 +4,8 @@ import { html, mount, on, parseAmount, bindMoneyInput, formatAmount, initial, da
 import { icon, openSheet, confirmDialog, withBusy, errorState, skeleton } from '../ui.js';
 import { toast } from '../notifications.js';
 
+const isTextFieldFocused = () => document.activeElement && document.activeElement.matches && document.activeElement.matches('input, textarea, select');
+
 const EMOJI_PICKS = ['🍜', '🧋', '🍕', '🥗', '🛒', '👕', '💄', '📱', '🏠', '💡', '🚗', '⛽', '✈️', '🏋️', '🎁', '💊', '📚', '🐱', '🎬', '🎧', '💼', '💻', '📈', '🪙'];
 
 const toggleRow = (id, label, hint, checked, disabled = false) => html`
@@ -22,7 +24,7 @@ export async function render(ctx) {
     [{ data: settings }, categories] = await Promise.all([api.get('/api/settings'), state.getCategories(true)]);
   } catch (err) {
     mount(root, errorState(err.message));
-    on(root, 'click', '[data-retry]', () => render(ctx));
+    on(root, 'click', '[data-retry]', () => ctx.reload());
     return;
   }
 
@@ -56,6 +58,7 @@ export async function render(ctx) {
     </section>
 
     <div class="sec-head"><h2>Budget</h2></div>
+    <form id="budget-form" novalidate data-budget-form>
     <section class="card">
       <div class="bud">
         <div class="bn">Budget bulanan total<small>Batas semua pengeluaran per bulan</small></div>
@@ -66,8 +69,9 @@ export async function render(ctx) {
         <div class="bn">${c.name}<small>per bulan</small></div>
         <label class="money-input"><span>Rp</span><input inputmode="numeric" data-budget="${c._id}" data-name="${c.name}" aria-label="Budget ${c.name}" enterkeyhint="done" value="${formatAmount(c.budgetLimit)}" placeholder="tanpa"></label>
       </div>`)}
-      <p class="muted small" style="margin-top:10px">Kosongkan atau isi 0 kalau nggak mau pakai budget di kategori itu. Tersimpan otomatis.</p>
+      <p class="muted small" style="margin-top:10px">Kosongkan atau isi 0 kalau nggak mau pakai budget di kategori itu. Setelah selesai mengubah, ketuk <b>Simpan</b>.</p>
     </section>
+    </form>
 
     <div class="sec-head"><h2>Kategori</h2><button class="link" type="button" data-add-cat>+ Tambah</button></div>
     <section class="card" style="padding-top:6px;padding-bottom:6px">
@@ -86,6 +90,11 @@ export async function render(ctx) {
 
     <button class="btn btn-secondary btn-block" type="button" data-logout style="margin-top:16px">${icon('logout')} Keluar</button>
     <p class="foot">PANTAU v1.0 · dibuat biar kamu nggak kalap 💸</p>
+
+    <div class="save-bar" data-save-bar hidden role="region" aria-label="Perubahan budget belum disimpan">
+      <button class="btn btn-secondary" type="button" data-save-cancel>Batal</button>
+      <button class="btn btn-primary" type="submit" form="budget-form" data-save-btn>Simpan perubahan</button>
+    </div>
   `,
   );
 
@@ -114,24 +123,78 @@ export async function render(ctx) {
     if (!d) e.target.checked = !e.target.checked;
   });
 
-  // ---- budget (tersimpan saat selesai mengetik) ----
-  const monthly = root.querySelector('[data-monthly]');
-  bindMoneyInput(monthly);
-  monthly.addEventListener('change', () => patch({ monthlyBudget: parseAmount(monthly.value) }, 'Budget bulanan disimpan ✅'));
-  root.querySelectorAll('[data-budget]').forEach((input) => {
-    bindMoneyInput(input);
-    input.addEventListener('change', async () => {
-      try {
-        await api.put(`/api/settings/budget/${input.dataset.budget}`, { budgetLimit: parseAmount(input.value) });
-        state.invalidateCategories();
-        toast.success(`Budget ${input.dataset.name} disimpan ✅`);
-      } catch (err) {
-        toast.error(err.message);
-      }
-    });
+  // ---- budget: simpan EKSPLISIT lewat tombol (bukan lewat blur) ----
+  // Di iPhone, keypad angka tidak punya tombol Enter dan mengetuk area kosong tidak melepas fokus, jadi
+  // event "change" (yang butuh blur) tidak pernah terpicu. Tombol Simpan tidak bergantung pada itu.
+  const fields = [...root.querySelectorAll('[data-monthly], [data-budget]')];
+  const keyOf = (f) => (f.hasAttribute('data-monthly') ? 'monthly' : f.dataset.budget);
+  const initialOf = new Map(fields.map((f) => [f, parseAmount(f.value)]));
+  const isDirty = (f) => parseAmount(f.value) !== initialOf.get(f);
+  const saveBar = root.querySelector('[data-save-bar]');
+  const saveBtn = root.querySelector('[data-save-btn]');
+
+  const refresh = () => {
+    const n = fields.filter(isDirty).length;
+    fields.forEach((f) => f.closest('.money-input').classList.toggle('dirty', isDirty(f)));
+    saveBar.hidden = n === 0;
+    root.classList.toggle('has-save-bar', n > 0);
+    if (!saveBtn.classList.contains('loading')) saveBtn.textContent = n > 1 ? `Simpan ${n} perubahan` : 'Simpan perubahan';
+  };
+  state.unsaved = () => fields.some(isDirty); // dibaca app.js untuk menahan navigasi
+
+  // Render ulang (mis. setelah ubah kategori) tidak boleh membuang angka yang sedang diketik.
+  const reload = () => {
+    const pending = {};
+    fields.forEach((f) => { if (isDirty(f)) pending[keyOf(f)] = f.value; });
+    state.pendingEdits = Object.keys(pending).length ? pending : null;
+    return ctx.reload();
+  };
+  if (state.pendingEdits) {
+    fields.forEach((f) => { const k = keyOf(f); if (k in state.pendingEdits) f.value = state.pendingEdits[k]; });
+    state.pendingEdits = null;
+  }
+
+  fields.forEach((f) => bindMoneyInput(f, refresh));
+  refresh();
+
+  root.querySelector('[data-save-cancel]').addEventListener('click', () => {
+    fields.forEach((f) => { f.value = formatAmount(initialOf.get(f)); });
+    refresh();
   });
-  root.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.matches('.money-input input')) e.target.blur();
+
+  root.querySelector('[data-budget-form]').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const changed = fields.filter(isDirty);
+    if (!changed.length) return;
+    if (isTextFieldFocused()) document.activeElement.blur(); // tutup keyboard
+    await withBusy(saveBtn, async () => {
+      const results = await Promise.allSettled(
+        changed.map(async (f) => {
+          const value = parseAmount(f.value);
+          if (f.hasAttribute('data-monthly')) {
+            await api.put('/api/settings', { monthlyBudget: value });
+            settings.monthlyBudget = value;
+          } else {
+            await api.put(`/api/settings/budget/${f.dataset.budget}`, { budgetLimit: value });
+            // `categories` dipakai lagi oleh sheet "Ubah kategori": harus ikut diperbarui,
+            // kalau tidak, menyimpan sheet itu mengembalikan budget ke angka lama.
+            const cat = categories.find((c) => c._id === f.dataset.budget);
+            if (cat) cat.budgetLimit = value;
+          }
+          initialOf.set(f, value);
+        }),
+      );
+      const failed = results.map((r, i) => ({ r, f: changed[i] })).filter(({ r }) => r.status === 'rejected');
+      const savedCount = changed.length - failed.length;
+      if (savedCount) {
+        state.invalidateCategories();
+        const only = changed.find((f) => initialOf.get(f) === parseAmount(f.value));
+        toast.success(savedCount === 1 && only ? `Budget ${only.dataset.name || 'bulanan'} disimpan ✅` : `${savedCount} budget disimpan ✅`);
+      }
+      if (failed.length) toast.error(`${failed.length} budget gagal disimpan: ${failed[0].r.reason.message}`);
+      refresh();
+    });
+    refresh();
   });
 
   // ---- profil ----
@@ -151,7 +214,7 @@ export async function render(ctx) {
         if (d) {
           session.setUser({ ...session.user, name: d.name });
           close();
-          render(ctx);
+          reload();
         }
       });
     });
@@ -216,7 +279,7 @@ export async function render(ctx) {
           state.invalidateCategories();
           toast.success(editing ? 'Kategori diperbarui ✅' : 'Kategori ditambahkan ✨');
           close();
-          render(ctx);
+          reload();
         } catch (e2) {
           err.textContent = e2.message;
           err.hidden = false;
@@ -233,7 +296,7 @@ export async function render(ctx) {
           state.invalidateCategories();
           toast.success('Kategori dihapus 🗑️');
           close();
-          render(ctx);
+          reload();
         } catch (e2) {
           toast.error(e2.message);
         }

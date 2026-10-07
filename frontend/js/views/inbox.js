@@ -25,7 +25,7 @@ export async function render(ctx) {
     res = await api.get('/api/notifications', { limit: 50 });
   } catch (err) {
     mount(root, html`<header class="screen-head"><h1>Notifikasi</h1></header>${errorState(err.message)}`);
-    on(root, 'click', '[data-retry]', () => render(ctx));
+    on(root, 'click', '[data-retry]', () => ctx.reload());
     return;
   }
 

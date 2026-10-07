@@ -41,18 +41,32 @@ export function rpShort(n) {
 }
 export const parseAmount = (str) => Number(String(str ?? '').replace(/\D/g, '')) || 0;
 export const formatAmount = (n) => (n > 0 ? group(n) : '');
-/** Format angka dengan titik ribuan saat mengetik; caret dijaga di posisi digit yang sama. */
+/**
+ * Format angka dengan titik ribuan saat mengetik; caret dijaga di posisi digit yang sama.
+ * Selama komposisi IME (keyboard HP yang sedang menyusun teks) isi kolom TIDAK ditulis ulang —
+ * menulis ulang saat komposisi aktif membuat sebagian keyboard menempelkan teksnya dua kali
+ * (mis. 450000 jadi 99.999.999.999). Format dijalankan saat komposisi selesai.
+ */
 export function bindMoneyInput(input, onChange) {
-  input.addEventListener('input', () => {
+  const MAX = 99_999_999_999;
+  const format = () => {
     const digitsBefore = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/\D/g, '').length;
-    const n = Math.min(parseAmount(input.value), 99_999_999_999);
+    const n = Math.min(parseAmount(input.value), MAX);
     input.value = formatAmount(n);
     let pos = 0;
     let seen = 0;
     while (pos < input.value.length && seen < digitsBefore) if (/\d/.test(input.value[pos++])) seen++;
     try { input.setSelectionRange(pos, pos); } catch { /* beberapa tipe input tidak mendukung */ }
     if (onChange) onChange(n);
+  };
+  input.addEventListener('input', (e) => {
+    if (e.isComposing) {
+      if (onChange) onChange(Math.min(parseAmount(input.value), MAX));
+      return;
+    }
+    format();
   });
+  input.addEventListener('compositionend', format);
 }
 
 // ---------- tanggal (zona waktu perangkat) ----------

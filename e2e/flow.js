@@ -182,11 +182,13 @@ const check = (name, cond, extra = '') => {
   await page.locator('#t-dark').evaluate((el) => el.click());
 
   const kopiInput = page.locator('[data-name="Kopi"]');
+  await kopiInput.tap();
   await kopiInput.fill('');
   await kopiInput.pressSequentially('450000');
-  await kopiInput.blur();
+  check('bar Simpan muncul setelah mengubah budget', await page.locator('[data-save-bar]').isVisible());
+  await page.locator('[data-save-btn]').click();
   await waitToast(/Budget Kopi disimpan/);
-  check('budget Kopi tersimpan', /Budget Kopi disimpan/.test(await toastText()));
+  check('budget Kopi tersimpan lewat tombol Simpan', /Budget Kopi disimpan/.test(await toastText()));
   await page.reload({ waitUntil: 'networkidle' });
   check('budget Kopi bertahan setelah reload', (await page.locator('[data-name="Kopi"]').inputValue()) === '450.000');
 

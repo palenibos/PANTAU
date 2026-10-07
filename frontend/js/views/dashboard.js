@@ -77,7 +77,7 @@ export async function render(ctx) {
     ({ data: d } = await api.get('/api/dashboard'));
   } catch (err) {
     mount(root, errorState(err.message));
-    on(root, 'click', '[data-retry]', () => render(ctx));
+    on(root, 'click', '[data-retry]', () => ctx.reload());
     return;
   }
   state.setUnread(d.unreadNotifications);
@@ -148,7 +148,7 @@ export async function render(ctx) {
     setDismissed(banner.dataset.banner);
     banner.remove();
   });
-  on(root, 'click', '[data-theme-toggle]', () => state.toggleTheme(() => render(ctx)));
+  on(root, 'click', '[data-theme-toggle]', () => state.toggleTheme(() => ctx.reload()));
 }
 
 export const title = 'Beranda';
