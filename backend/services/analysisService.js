@@ -2,7 +2,7 @@ const Transaction = require('../models/Transaction');
 const MonthlyAnalysis = require('../models/Analysis');
 const { listCategories } = require('./categoryService');
 const analysis = require('../utils/analysis');
-const { monthRange, addMonths, weekWindow, monthKey, dayKey } = require('../utils/time');
+const { monthRange, addMonths, weekWindow, monthKey, dayKey, parts, daysInMonth, MONTHS_ID } = require('../utils/time');
 
 const PROJECTION = 'type category amount date';
 
@@ -19,8 +19,12 @@ async function getWeeklyAnalysis(userId, endKey = dayKey(new Date()), categories
   return analysis.buildWeeklyAnalysis({ txs, prevTxs, categories: cats, window: w });
 }
 
-/** Analisis satu bulan kalender (YYYY-MM), dibandingkan dengan bulan sebelumnya. */
-async function getMonthlyAnalysis(userId, month, { persist = false, categories } = {}) {
+/**
+ * Analisis satu bulan kalender (YYYY-MM), dibandingkan dengan bulan sebelumnya.
+ * Untuk bulan yang masih berjalan, pembandingnya hanya periode yang sama di bulan lalu
+ * (mis. 1-8 Okt vs 1-8 Sep) — membandingkan 8 hari dengan sebulan penuh akan menyesatkan.
+ */
+async function getMonthlyAnalysis(userId, month, { persist = false, categories, now = new Date() } = {}) {
   const cats = categories || (await listCategories(userId));
   const { start, end } = monthRange(month);
   const prevMonth = addMonths(month, -1);
@@ -29,7 +33,10 @@ async function getMonthlyAnalysis(userId, month, { persist = false, categories }
   const [txs, past] = await Promise.all([fetchTxs(userId, start, end), fetchTxs(userId, historyStart, start)]);
 
   const prevRange = monthRange(prevMonth);
-  const prevTxs = past.filter((t) => t.date >= prevRange.start && t.date < prevRange.end);
+  const isCurrent = month === monthKey(now);
+  // Bulan berjalan: potong bulan lalu di titik waktu yang sama (dibatasi panjang bulan lalu).
+  const cutoff = isCurrent ? Math.min(prevRange.start.getTime() + (now.getTime() - start.getTime()), prevRange.end.getTime()) : prevRange.end.getTime();
+  const prevTxs = past.filter((t) => t.date >= prevRange.start && t.date.getTime() < cutoff);
 
   // Total belanja per bulan sebelumnya (untuk deteksi "bulan paling boros").
   const index = analysis.indexCategories(cats);
@@ -41,7 +48,19 @@ async function getMonthlyAnalysis(userId, month, { persist = false, categories }
   }
   const history = [...byMonth.entries()].map(([m, spending]) => ({ month: m, spending }));
 
-  const result = analysis.buildMonthlyAnalysis({ month, txs, prevTxs, history, categories: cats });
+  const comparison = isCurrent ? 'month-to-date' : 'full-month';
+  const result = analysis.buildMonthlyAnalysis({ month, txs, prevTxs, history, categories: cats, comparison });
+
+  // Label pembanding untuk UI: "1–8 Sep" vs "1–8 Okt" (month-to-date) atau "September" vs "Oktober".
+  const monthName = (key) => MONTHS_ID[Number(key.split('-')[1]) - 1];
+  if (isCurrent) {
+    const day = Math.min(parts(now).d, daysInMonth(prevMonth));
+    const short = (key) => monthName(key).slice(0, 3);
+    result.compare = { mode: comparison, prevLabel: `1–${day} ${short(prevMonth)}`, curLabel: `1–${parts(now).d} ${short(month)}` };
+  } else {
+    result.compare = { mode: comparison, prevLabel: monthName(prevMonth), curLabel: monthName(month) };
+  }
+  result.isCurrent = isCurrent;
 
   if (persist && result.txCount > 0) {
     await MonthlyAnalysis.updateOne(

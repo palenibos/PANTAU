@@ -216,7 +216,7 @@ function weeklyNotification(weekly) {
         : `${weekly.changePct > 0 ? 'naik' : 'turun'} ${Math.abs(weekly.changePct)}% dari minggu lalu`;
   const top = weekly.topCategories.map((c) => `${c.emoji} ${c.category} ${rpShort(c.amount)}`).join(', ');
   return {
-    title: '📅 Ringkasan mingguan kamu udah siap',
+    title: 'Ringkasan mingguan kamu udah siap',
     message: `Minggu ini keluar ${rpShort(weekly.totalSpending)} (${change}). Top 3: ${top}. ${weekly.recommendation}`,
   };
 }
@@ -238,7 +238,7 @@ function weekendShare(txs) {
  * @param {{month:string,spending:number}[]} p.history bulan-bulan sebelumnya (untuk "bulan paling boros")
  * @param {object[]} p.categories
  */
-function buildMonthlyAnalysis({ month, txs, prevTxs = [], history = [], categories }) {
+function buildMonthlyAnalysis({ month, txs, prevTxs = [], history = [], categories, comparison = 'full-month' }) {
   const index = indexCategories(categories);
   const cur = summarize(txs, index);
   const prev = summarize(prevTxs, index);
@@ -277,7 +277,7 @@ function buildMonthlyAnalysis({ month, txs, prevTxs = [], history = [], categori
   const score = hasData ? healthScore({ saveRate: cur.saveRate, hasIncome: cur.hasIncome, budgets }) : null;
 
   const recommendations = hasData
-    ? buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, controlled, history, catByName })
+    ? buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, controlled, history, comparison })
     : ['Belum ada transaksi bulan ini. Catat dulu ya, nanti kita bedah bareng 📝'];
 
   return {
@@ -303,8 +303,9 @@ function buildMonthlyAnalysis({ month, txs, prevTxs = [], history = [], categori
   };
 }
 
-function buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, controlled, history, catByName }) {
+function buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, controlled, history, comparison }) {
   const recs = [];
+  const vs = comparison === 'month-to-date' ? 'periode yang sama bulan lalu' : 'bulan lalu';
 
   // 1) Cerita utama: defisit atau save rate
   if (!cur.hasIncome) {
@@ -348,7 +349,7 @@ function buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, c
   // 3) Kategori naik drastis
   if (rising[0]) {
     const r = rising[0];
-    recs.push(`${r.category} naik ${r.changePct}% dibanding bulan lalu (${rpShort(r.prevAmount)} → ${rpShort(r.amount)}). Lagi ada momen spesial, atau mulai jadi kebiasaan? 👀`);
+    recs.push(`${r.category} naik ${r.changePct}% dibanding ${vs} (${rpShort(r.prevAmount)} → ${rpShort(r.amount)}). Lagi ada momen spesial, atau mulai jadi kebiasaan? 👀`);
   }
 
   // 4) Potong 20% di kategori boros-able terbesar
@@ -379,7 +380,7 @@ function buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, c
   // 5b) Pujian untuk yang terkontrol
   if (controlled[0]) {
     const c = controlled[0];
-    recs.push(`${c.category} turun ${Math.abs(c.changePct)}% dibanding bulan lalu (${rpShort(c.prevAmount)} → ${rpShort(c.amount)}). Kontrol kamu keren, pertahankan! 🔥`);
+    recs.push(`${c.category} turun ${Math.abs(c.changePct)}% dibanding ${vs} (${rpShort(c.prevAmount)} → ${rpShort(c.amount)}). Kontrol kamu keren, pertahankan! 🔥`);
   }
 
   // 6) Kebaikan kecil
@@ -392,7 +393,7 @@ function buildRecommendations({ cur, prev, categoryBreakdown, budgets, rising, c
 function monthlyNotification(analysis) {
   const score = analysis.healthScore;
   return {
-    title: `📊 Laporan ${analysis.label} udah siap`,
+    title: `Laporan ${analysis.label} udah siap`,
     message: `Pemasukan ${rpShort(analysis.totalIncome)}, pengeluaran ${rpShort(analysis.totalExpense)}, sisa ${rpShort(analysis.netSaving)} (${Math.round(analysis.saveRate)}%). Skor kesehatan: ${score}/100 — ${analysis.healthLabel}. ${analysis.recommendations[0] || ''}`.trim(),
   };
 }

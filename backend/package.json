@@ -5,16 +5,15 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js",
     "demo": "node scripts/dev-memory.js",
-    "test": "node --test --test-concurrency=1 test/"
+    "test": "node --test --test-concurrency=1"
   },
-  "license": "MIT",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.2",

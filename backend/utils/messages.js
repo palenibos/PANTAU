@@ -39,7 +39,7 @@ function budgetMessage(c, rng = Math.random) {
   let pool;
 
   if (c.tier === 1) {
-    title = `${e} ${cat}: ${pct}% budget kepake`;
+    title = `${cat}: ${pct}% budget kepake`;
     const specific = {
       rokok: [`Rokok budget kamu tinggal ${left}% 👀 Masih banyak koq!`],
       nongkrong: [`Nongkrong budget ${pct}% kepake. Semoga worth it! 🎉`],
@@ -54,7 +54,7 @@ function budgetMessage(c, rng = Math.random) {
       `Heads up: ${lower} baru kepake ${pct}% ${e} Santai, masih ada ${remaining}.`,
     ];
   } else if (c.tier === 2) {
-    title = `${e} Budget ${lower} hampir habis`;
+    title = `Budget ${lower} hampir habis`;
     const generic = [
       `${name}, budget ${lower} tinggal ${remaining} nih ${e} ${daysText[0].toUpperCase() + daysText.slice(1)}, pelan-pelan ya 😅`,
     ];
@@ -69,7 +69,7 @@ function budgetMessage(c, rng = Math.random) {
     }[lower];
     pool = specific || generic;
   } else {
-    title = over > 0 ? `${e} Budget ${lower} terlewat` : `${e} Budget ${lower} habis`;
+    title = over > 0 ? `Budget ${lower} terlewat` : `Budget ${lower} habis`;
     pool =
       over > 0
         ? [

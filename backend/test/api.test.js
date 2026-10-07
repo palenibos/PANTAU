@@ -109,8 +109,14 @@ test('transaksi: CRUD + timestamp otomatis + emoji kategori', async () => {
   const cleared = await u.put(`/api/transactions/${id}`, { notes: '' });
   assert.equal(cleared.body.data.notes, '');
 
+  const one = await u.get(`/api/transactions/${id}`);
+  assert.equal(one.status, 200);
+  assert.equal(one.body.data.notes, '');
+  assert.equal(one.body.data.emoji, '🍔');
+
   assert.equal((await u.del(`/api/transactions/${id}`)).status, 200);
   assert.equal((await u.del(`/api/transactions/${id}`)).status, 404);
+  assert.equal((await u.get(`/api/transactions/${id}`)).status, 404);
   assert.equal((await u.get('/api/transactions')).body.total, 0);
 });
 
@@ -365,6 +371,36 @@ test('analysis: monthly & weekly + validasi parameter', async () => {
   assert.equal(w.body.data.totalSpending, 900_000);
   assert.equal(w.body.data.range.start, '2026-01-05');
   assert.equal((await u.get('/api/analysis/weekly?end=kemarin')).status, 400);
+});
+
+test('analisis bulan berjalan dibandingkan dengan PERIODE YANG SAMA bulan lalu', async () => {
+  const { getMonthlyAnalysis } = require('../services/analysisService');
+  const { fromLocal } = require('../utils/time');
+  const u = await newUser(app);
+  const at = (y, m, d) => fromLocal(y, m, d, 10, 0).toISOString();
+  const kopi = (amount, date) => u.post('/api/transactions', { type: 'expense', category: 'Kopi', amount, date });
+  await kopi(100_000, at(2026, 2, 5)); // masuk pembanding (1-8 Feb)
+  await kopi(400_000, at(2026, 2, 20)); // di luar 1-8 Feb -> TIDAK ikut dibandingkan
+  await kopi(150_000, at(2026, 3, 6));
+
+  // "Sekarang" = 8 Mar 2026 12:00 WIB
+  const now = fromLocal(2026, 3, 8, 12, 0);
+  const a = await getMonthlyAnalysis(u.user.id, '2026-03', { now });
+  assert.equal(a.isCurrent, true);
+  assert.equal(a.compare.mode, 'month-to-date');
+  assert.equal(a.compare.prevLabel, '1–8 Feb');
+  assert.equal(a.compare.curLabel, '1–8 Mar');
+  assert.equal(a.previous.totalExpense, 100_000);
+  assert.equal(a.categoryBreakdown[0].prevAmount, 100_000);
+  assert.equal(a.categoryBreakdown[0].changePct, 50);
+  assert.ok(a.recommendations.some((r) => /naik 50% dibanding periode yang sama bulan lalu/.test(r)), a.recommendations.join('\n'));
+
+  // Bulan yang sudah selesai: dibandingkan dengan bulan penuh sebelumnya.
+  const feb = await getMonthlyAnalysis(u.user.id, '2026-02', { now });
+  assert.equal(feb.isCurrent, false);
+  assert.equal(feb.compare.mode, 'full-month');
+  assert.equal(feb.compare.prevLabel, 'Januari');
+  assert.equal(feb.totalExpense, 500_000);
 });
 
 test('error handling: 404 API, JSON rusak, ID tidak valid, health', async () => {

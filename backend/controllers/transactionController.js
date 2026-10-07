@@ -82,6 +82,12 @@ async function list(req, res) {
   });
 }
 
+async function getOne(req, res) {
+  const tx = await Transaction.findOne({ _id: req.valid.params.id, userId: req.user._id }).lean();
+  if (!tx) throw new ApiError(404, 'Transaksi nggak ditemukan', 'NOT_FOUND');
+  res.json({ success: true, data: toDto(tx, catMap(await listCategories(req.user._id))) });
+}
+
 async function create(req, res) {
   const body = req.valid.body;
   const user = req.user;
@@ -160,4 +166,4 @@ async function remove(req, res) {
   res.json({ success: true, message: 'Transaksi dihapus 🗑️' });
 }
 
-module.exports = { list, create, update, remove };
+module.exports = { list, getOne, create, update, remove };

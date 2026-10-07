@@ -7,3 +7,5 @@ node_modules/
 coverage/
 .vscode/
 .idea/
+e2e/node_modules/
+e2e/out/

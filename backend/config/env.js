@@ -29,4 +29,8 @@ if (!env.jwtSecret) {
   throw new Error('JWT_SECRET wajib diisi saat NODE_ENV=production (lihat backend/.env.example).');
 }
 
+if (!process.env.JWT_SECRET && !isTest) {
+  console.warn('⚠️  JWT_SECRET belum diisi — memakai secret bawaan khusus development. Jangan deploy begini!');
+}
+
 module.exports = env;
