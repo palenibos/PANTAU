@@ -7,6 +7,7 @@ async function connectDB(uri = env.mongoUri) {
   await mongoose.connect(uri, {
     dbName: env.dbName,
     serverSelectionTimeoutMS: 10000,
+    maxPoolSize: 10,
   });
   return mongoose.connection;
 }

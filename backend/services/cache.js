@@ -23,6 +23,7 @@ function set(key, value, ttlMs) {
 }
 
 async function remember(key, ttlMs, producer) {
+  if (ttlMs <= 0) return producer();
   const hit = get(key);
   if (hit !== undefined) return hit;
   const value = await producer();
