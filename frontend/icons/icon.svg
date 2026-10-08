@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="PANTAU">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e7490"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#g)"/>
+  <!-- huruf P + koin kecil: "pantau" uangmu -->
+  <path fill="#fff" fill-rule="evenodd" d="M40 28h30a24 24 0 0 1 0 48H54v24H40zM54 42v20h16a10 10 0 0 0 0-20z"/>
+  <circle cx="92" cy="94" r="12" fill="#22d3ee"/>
+  <path d="M86.5 94.5l4 4 7-8" fill="none" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,15 @@
+{
+  "name": "pantau-e2e",
+  "private": true,
+  "description": "Uji browser (viewport HP) untuk PANTAU",
+  "scripts": {
+    "flow": "node flow.js",
+    "budget": "node budget.js",
+    "smoke": "node smoke.js",
+    "slow3g": "node slow3g.js",
+    "screenshots": "node screenshots.js"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  }
+}

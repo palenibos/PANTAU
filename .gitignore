@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+.vscode/
+.idea/
+e2e/node_modules/
+e2e/out/
