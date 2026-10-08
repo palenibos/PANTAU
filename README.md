@@ -185,6 +185,7 @@ Rename kategori ikut mengganti nama di transaksinya. Kategori yang masih dipakai
 | `CORS_ORIGIN` | `*` | pisahkan dengan koma; isi domain frontend bila di-deploy terpisah |
 | `APP_TZ_OFFSET_MINUTES` | `420` | WIB. WITA = 480, WIT = 540 |
 | `TRUST_PROXY` | `1` di production | jumlah proxy di depan app (untuk rate limit per-IP) |
+| `DEMO_ENABLED` | nyala di development, mati di production | tombol "Coba akun demo" di layar login (akun demo hanya ada kalau database di-seed) |
 
 ## ✅ Testing
 

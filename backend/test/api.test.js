@@ -403,6 +403,12 @@ test('analisis bulan berjalan dibandingkan dengan PERIODE YANG SAMA bulan lalu',
   assert.equal(feb.totalExpense, 500_000);
 });
 
+test('config publik: tombol demo menyala di non-production', async () => {
+  const res = await request(app).get('/api/config');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.demo, true);
+});
+
 test('error handling: 404 API, JSON rusak, ID tidak valid, health', async () => {
   const u = await newUser(app);
   const nf = await u.get('/api/ngawur');

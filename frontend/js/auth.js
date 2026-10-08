@@ -31,12 +31,25 @@ export function renderAuth(root, { onSuccess, mode: initialMode = 'login' }) {
             <button type="button" data-switch>${reg ? 'Masuk' : 'Daftar'}</button></p>
         </form>
 
-        ${reg ? '' : html`<div class="demo-box">
+        ${reg ? '' : html`<div data-demo-slot></div>`}
+      </main>`.s;
+    drawDemo();
+  };
+
+  // Kotak "Coba akun demo" hanya tampil bila server mengizinkan (development/demo). Diisi tanpa merender ulang
+  // formulir supaya ketikan user tidak hilang.
+  let demoEnabled = false;
+  const drawDemo = () => {
+    const slot = root.querySelector('[data-demo-slot]');
+    if (!slot) return;
+    slot.innerHTML = demoEnabled
+      ? html`<div class="demo-box">
           <b>Mau lihat dulu?</b> Coba akun demo (sudah ada data 3 bulan).
           <button class="btn btn-secondary btn-block" type="button" data-demo>Coba akun demo</button>
-        </div>`}
-      </main>`.s;
+        </div>`.s
+      : '';
   };
+  api.config().then((c) => { demoEnabled = Boolean(c && c.demo); drawDemo(); }).catch(() => {});
 
   const showError = (msg) => {
     const box = root.querySelector('[data-error]');

@@ -123,6 +123,7 @@ const qs = (params = {}) => {
 };
 
 export const api = {
+  config: () => send('/api/config', { timeout: 15000 }),
   get: (path, params) => request(path + qs(params)),
   post: (path, body) => request(path, { method: 'POST', body: body ?? {} }),
   put: (path, body) => request(path, { method: 'PUT', body: body ?? {} }),

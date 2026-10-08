@@ -23,6 +23,9 @@ const env = {
   tzOffsetMinutes: Number(process.env.APP_TZ_OFFSET_MINUTES ?? 420),
   trustProxy: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : isProd ? 1 : 0,
   dashboardCacheMs: 5 * 60 * 1000,
+  // Tombol "Coba akun demo" di layar login. Default: nyala di development, MATI di production
+  // (akun demo hanya ada kalau database di-seed). Paksa dengan DEMO_ENABLED=true/false.
+  demoEnabled: process.env.DEMO_ENABLED ? process.env.DEMO_ENABLED === 'true' : !isProd,
 };
 
 if (!env.jwtSecret) {

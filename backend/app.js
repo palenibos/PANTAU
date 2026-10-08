@@ -65,6 +65,9 @@ function createApp() {
     res.status(up ? 200 : 503).json({ success: up, status: up ? 'ok' : 'db-disconnected' });
   });
 
+  // Konfigurasi publik untuk frontend (belum login).
+  api.get('/config', (req, res) => res.json({ success: true, demo: env.demoEnabled }));
+
   api.use('/auth', require('./routes/auth'));
 
   // Semua di bawah ini butuh login.
