@@ -7,6 +7,7 @@ async function connectDB(uri = env.mongoUri) {
   await mongoose.connect(uri, {
     dbName: env.dbName,
     serverSelectionTimeoutMS: 10000,
+    maxPoolSize: 10,
   });
   return mongoose.connection;
 }
@@ -15,4 +16,7 @@ async function disconnectDB() {
   await mongoose.disconnect();
 }
 
-module.exports = { connectDB, disconnectDB };
+// 0=putus, 1=tersambung, 2=menyambung, 3=memutus
+const dbState = () => mongoose.connection.readyState;
+
+module.exports = { connectDB, disconnectDB, dbState };

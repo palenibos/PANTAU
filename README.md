@@ -208,6 +208,12 @@ Paling simpel: **satu service** (Express melayani API + frontend) + **MongoDB At
 3. (Opsional) isi data demo ke database online: jalankan sekali `npm run seed` dengan `MONGODB_URI` mengarah ke Atlas. **Jangan** seed akun demo di produksi publik yang berisi data sungguhan.
 4. Buka URL Render → selesai. Instance free tidur setelah idle; request pertama bisa lambat ±30 dtk.
 
+**Semua di Vercel (tanpa kartu di paket Hobby)** — `vercel.json` + `api/index.js` sudah disiapkan: frontend disajikan statis, `/api/*` jalan sebagai fungsi serverless.
+1. Siapkan Atlas seperti langkah 1 di atas (*Network Access* wajib `0.0.0.0/0` karena IP Vercel dinamis).
+2. vercel.com → *Add New → Project* → import repo ini (branch yang mau dipakai). Biarkan *Framework Preset = Other*; build/output sudah diatur di `vercel.json`.
+3. *Environment Variables*: `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET` (acak, panjang), opsional `DB_NAME`.
+4. *Deploy* → buka URL `*.vercel.app`. Catatan serverless: cache dashboard dimatikan otomatis (tiap request bisa kena instance berbeda) dan rate-limit dihitung per instance, jadi lebih longgar dari di server tunggal.
+
 **Frontend terpisah (Vercel/Netlify)** — opsional: deploy folder `frontend/` sebagai situs statis (tanpa build), lalu ubah `frontend/js/config.js` → `export const API_BASE = 'https://api-kamu.onrender.com'` dan set `CORS_ORIGIN=https://domain-frontend-kamu` di backend. Auth memakai header Bearer (bukan cookie), jadi lintas-origin aman.
 
 **Checklist produksi**: `NODE_ENV=production` · `JWT_SECRET` panjang & acak · `CORS_ORIGIN` dibatasi · HTTPS (otomatis di Render/Vercel) · jangan commit `.env` (sudah di `.gitignore`).

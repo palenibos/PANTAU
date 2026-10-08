@@ -2,13 +2,7 @@ const env = require('./config/env');
 const { connectDB, disconnectDB } = require('./config/db');
 const app = require('./app');
 
-const models = [
-  require('./models/User'),
-  require('./models/Transaction'),
-  require('./models/Category'),
-  require('./models/Analysis'),
-  require('./models/Notification'),
-];
+const models = require('./models');
 
 async function start() {
   try {
