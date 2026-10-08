@@ -1,6 +1,6 @@
 // Entry point Vercel (serverless): semua /api/* diarahkan ke sini lewat vercel.json.
 // Koneksi MongoDB dibuat sekali per instance lalu dipakai ulang antar request.
-const { connectDB } = require('../backend/config/db');
+const { connectDB, dbState } = require('../backend/config/db');
 const models = require('../backend/models');
 const app = require('../backend/app');
 
@@ -28,6 +28,10 @@ function init() {
 }
 
 module.exports = async (req, res) => {
+  // Instance serverless yang sempat "dibekukan" bisa kehilangan koneksi: sambungkan ulang, jangan pakai promise lama.
+  const state = dbState();
+  if (ready && (state === 0 || state === 3)) ready = null;
+  req.pantauEntry = 'api/index.js';
   try {
     await init();
   } catch (err) {
