@@ -24,11 +24,15 @@ export async function render(ctx) {
     [{ data: settings }, categories] = await Promise.all([api.get('/api/settings'), state.getCategories(true)]);
   } catch (err) {
     mount(root, errorState(err.message));
-    on(root, 'click', '[data-retry]', () => ctx.reload());
+    on(root, 'click', '[data-retry]', () => (ctx.reload ? ctx.reload() : location.reload()));
     return;
   }
 
-  if (!ctx.alive()) return; // pengguna sudah pindah layar selagi data dimuat: jangan sentuh state global
+  // ctx.alive/setUnsaved disediakan app.js. Dipanggil defensif: kalau browser menyimpan app.js versi lama di cache
+  // (campuran versi), layar tetap jalan — hanya penjaga 'belum disimpan' yang tidak aktif.
+  const alive = () => (typeof ctx.alive === 'function' ? ctx.alive() : true);
+  const setUnsaved = (fn) => { if (typeof ctx.setUnsaved === 'function') ctx.setUnsaved(fn); };
+  if (!alive()) return; // pengguna sudah pindah layar selagi data dimuat: jangan sentuh state global
 
   const expense = categories.filter((c) => c.type !== 'income');
   const budgeted = expense.filter((c) => !c.isSaving);
@@ -154,14 +158,14 @@ export async function render(ctx) {
     statusEl.textContent = n ? `${n} perubahan belum disimpan` : '';
   };
   // Dibaca app.js untuk menahan navigasi. Selagi menyimpan, pindah halaman aman (request tetap selesai).
-  ctx.setUnsaved(() => !saving && fields.some(isDirty));
+  setUnsaved(() => !saving && fields.some(isDirty));
 
   // Render ulang (mis. setelah ubah kategori) tidak boleh membuang angka yang sedang diketik.
   const reload = () => {
     const pending = {};
     fields.forEach((f) => { if (isDirty(f)) pending[keyOf(f)] = f.value; });
     state.pendingEdits = Object.keys(pending).length ? pending : null;
-    return ctx.reload();
+    return (ctx.reload ? ctx.reload() : location.reload());
   };
   if (state.pendingEdits) {
     fields.forEach((f) => { const k = keyOf(f); if (k in state.pendingEdits) f.value = state.pendingEdits[k]; });
@@ -350,7 +354,7 @@ export async function render(ctx) {
     if (!yes) return;
     try {
       await api.del('/api/settings/data', { confirm: 'RESET' });
-      ctx.setUnsaved(null); // data sudah direset: budget yang belum disimpan tidak berarti lagi
+      setUnsaved(null); // data sudah direset: budget yang belum disimpan tidak berarti lagi
       state.invalidateCategories();
       toast.success('Data direset. Lembaran baru! 🌱');
       navigate('#/');

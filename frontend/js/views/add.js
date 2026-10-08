@@ -23,7 +23,7 @@ export async function render(ctx) {
     if (editId) tx = (await api.get(`/api/transactions/${editId}`)).data;
   } catch (err) {
     mount(root, errorState(err.status === 404 ? 'Transaksi ini udah nggak ada.' : err.message));
-    on(root, 'click', '[data-retry]', () => ctx.reload());
+    on(root, 'click', '[data-retry]', () => (ctx.reload ? ctx.reload() : location.reload()));
     return;
   }
 
