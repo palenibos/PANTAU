@@ -22,7 +22,8 @@ const env = {
   // WIB = UTC+7. Dipakai untuk batas hari/bulan/minggu. Indonesia tidak pakai DST.
   tzOffsetMinutes: Number(process.env.APP_TZ_OFFSET_MINUTES ?? 420),
   trustProxy: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : isProd ? 1 : 0,
-  dashboardCacheMs: 5 * 60 * 1000,
+  // Di Vercel (serverless) tiap request bisa kena instance berbeda, jadi cache in-memory bisa basi: matikan.
+  dashboardCacheMs: process.env.VERCEL ? 0 : 5 * 60 * 1000,
   // Tombol "Coba akun demo" di layar login. Default: nyala di development, MATI di production
   // (akun demo hanya ada kalau database di-seed). Paksa dengan DEMO_ENABLED=true/false.
   demoEnabled: process.env.DEMO_ENABLED ? process.env.DEMO_ENABLED === 'true' : !isProd,
